@@ -383,47 +383,6 @@
       line-height: 1;
     }
 
-    .camp-marker {
-      position: relative;
-      display: block;
-      width: 28px;
-      height: 24px;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.52));
-      cursor: pointer;
-    }
-
-    .camp-marker::before {
-      content: "";
-      position: absolute;
-      left: 4px;
-      bottom: 3px;
-      width: 20px;
-      height: 16px;
-      clip-path: polygon(50% 0, 100% 100%, 0 100%);
-      background: linear-gradient(135deg, #f0d56b 0 52%, #c9973f 52% 100%);
-      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
-    }
-
-    .camp-marker::after {
-      content: "";
-      position: absolute;
-      left: 12px;
-      bottom: 3px;
-      width: 5px;
-      height: 9px;
-      clip-path: polygon(50% 0, 100% 100%, 0 100%);
-      background: #1a1f16;
-    }
-
-    .camp-marker:hover,
-    .camp-marker:focus-visible {
-      outline: none;
-      filter: drop-shadow(0 0 5px rgba(226, 192, 68, 0.58)) drop-shadow(0 7px 10px rgba(0, 0, 0, 0.54));
-    }
-
     .maplibregl-popup-content {
       width: min(320px, 76vw);
       padding: 14px 15px;
@@ -580,7 +539,7 @@
 
     <section class="map-wrap" aria-label="Interactive map">
       <div id="map"></div>
-      <div class="map-note">Numbered markers are route checklist stops. Diamond markers are optional supply camps on the travel line.</div>
+      <div class="map-note">Numbered markers are route checklist stops. Tent markers are optional supply camps on the travel line.</div>
     </section>
   </main>
 
@@ -965,6 +924,18 @@
       }]
     };
 
+    const campGeoJson = {
+      type: "FeatureCollection",
+      features: optionalSupplyCamps.map((camp, index) => ({
+        type: "Feature",
+        properties: { campIndex: index, title: camp.name },
+        geometry: {
+          type: "Point",
+          coordinates: camp.coords
+        }
+      }))
+    };
+
     const map = new maplibregl.Map({
       container: "map",
       center: [-0.75699239980495, 0.78721632516605],
@@ -1133,6 +1104,56 @@
         .addTo(map);
     }
 
+    function createCampIcon() {
+      const canvas = document.createElement("canvas");
+      canvas.width = 56;
+      canvas.height = 48;
+
+      const ctx = canvas.getContext("2d");
+      ctx.shadowColor = "rgba(0, 0, 0, 0.52)";
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 5;
+
+      ctx.beginPath();
+      ctx.moveTo(28, 5);
+      ctx.lineTo(49, 39);
+      ctx.lineTo(7, 39);
+      ctx.closePath();
+      ctx.fillStyle = "#1a1f16";
+      ctx.fill();
+
+      ctx.shadowColor = "transparent";
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(28, 8);
+      ctx.lineTo(46, 38);
+      ctx.lineTo(28, 38);
+      ctx.closePath();
+      ctx.fillStyle = "#c9973f";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(28, 8);
+      ctx.lineTo(28, 38);
+      ctx.lineTo(10, 38);
+      ctx.closePath();
+      ctx.fillStyle = "#f0d56b";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(28, 21);
+      ctx.lineTo(35, 38);
+      ctx.lineTo(21, 38);
+      ctx.closePath();
+      ctx.fillStyle = "#10130f";
+      ctx.fill();
+
+      return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
+
     function setActive(index, shouldFly = true) {
       document.querySelectorAll(".route-stop").forEach((node) => {
         node.classList.toggle("active", Number(node.dataset.stopIndex) === index);
@@ -1162,6 +1183,36 @@
     }
 
     map.on("load", () => {
+      map.addImage("camp-icon", createCampIcon(), { pixelRatio: 2 });
+      map.addSource("supply-camps", {
+        type: "geojson",
+        data: campGeoJson
+      });
+      map.addLayer({
+        id: "supply-camp-icons",
+        type: "symbol",
+        source: "supply-camps",
+        layout: {
+          "icon-image": "camp-icon",
+          "icon-size": 1,
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true
+        }
+      });
+      map.on("click", "supply-camp-icons", (event) => {
+        const campIndex = event.features && event.features[0] && event.features[0].properties.campIndex;
+        const camp = optionalSupplyCamps[Number(campIndex)];
+        if (camp) {
+          showCamp(camp);
+        }
+      });
+      map.on("mouseenter", "supply-camp-icons", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "supply-camp-icons", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
       routeStops.forEach((stop, index) => {
         const el = document.createElement("button");
         const badge = document.createElement("span");
@@ -1181,19 +1232,6 @@
           .addTo(map);
 
         markers.set(index, marker);
-      });
-
-      optionalSupplyCamps.forEach((camp) => {
-        const el = document.createElement("button");
-        el.className = "camp-marker";
-        el.type = "button";
-        el.setAttribute("aria-label", camp.name);
-        el.title = camp.name;
-        el.addEventListener("click", () => showCamp(camp));
-
-        new maplibregl.Marker({ element: el, anchor: "center" })
-          .setLngLat(camp.coords)
-          .addTo(map);
       });
 
       const bounds = new maplibregl.LngLatBounds();
