@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sons Of The Forest Optimized Route Map</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.css">
+  <style>
+    :root {
+      --ink: #f7f4ea;
+      --muted: #c9c4b3;
+      --panel: rgba(18, 20, 18, 0.94);
+      --panel-strong: rgba(9, 11, 9, 0.96);
+      --line: rgba(247, 244, 234, 0.18);
+      --accent: #e2c044;
+      --danger: #de6f4f;
+      --forest: #6aa56c;
+      --water: #5ba6b8;
+      --cave: #d08a5b;
+      --bunker: #9ba3b0;
+      --endgame: #bda4ef;
+      --final: #f0d56b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #11140f;
+      color: var(--ink);
+      font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(320px, 390px) 1fr;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .panel {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      min-height: 0;
+      background: linear-gradient(180deg, var(--panel-strong), var(--panel));
+      border-right: 1px solid var(--line);
+      box-shadow: 12px 0 34px rgba(0, 0, 0, 0.34);
+    }
+
+    .header {
+      padding: 22px 20px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 27px;
+      font-weight: 700;
+      line-height: 1.08;
+    }
+
+    .header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 10px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .swatch {
+      width: 11px;
+      height: 11px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--stage-color);
+      box-shadow: 0 0 0 2px rgba(247, 244, 234, 0.13);
+    }
+
+    .route-list {
+      min-height: 0;
+      overflow: auto;
+      padding: 8px 10px 14px;
+      scrollbar-color: rgba(247, 244, 234, 0.35) transparent;
+    }
+
+    .route-stop {
+      display: grid;
+      grid-template-columns: 31px 1fr;
+      gap: 10px;
+      width: 100%;
+      padding: 10px;
+      border: 0;
+      border-bottom: 1px solid rgba(247, 244, 234, 0.08);
+      border-radius: 4px;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .route-stop:hover,
+    .route-stop:focus-visible {
+      outline: none;
+      background: rgba(247, 244, 234, 0.08);
+    }
+
+    .route-stop.active {
+      background: rgba(226, 192, 68, 0.13);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+
+    .route-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--stage-color);
+      color: #11140f;
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 0 0 2px rgba(247, 244, 234, 0.12);
+    }
+
+    .route-name {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .route-meta {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .footer-note {
+      padding: 12px 20px 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .map-wrap {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(91, 166, 184, 0.22), transparent 30%),
+        linear-gradient(135deg, #192115, #10130f 58%, #151913);
+    }
+
+    .map-note {
+      position: absolute;
+      right: 16px;
+      bottom: 18px;
+      z-index: 1;
+      max-width: min(420px, calc(100% - 32px));
+      padding: 10px 12px;
+      border: 1px solid rgba(247, 244, 234, 0.2);
+      border-radius: 4px;
+      background: rgba(9, 11, 9, 0.86);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      backdrop-filter: blur(8px);
+    }
+
+    .marker {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 29px;
+      height: 29px;
+      border: 2px solid rgba(255, 255, 255, 0.84);
+      border-radius: 50%;
+      background: var(--stage-color);
+      color: #10130f;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 5px 14px rgba(0, 0, 0, 0.45);
+      cursor: pointer;
+    }
+
+    .marker.active {
+      transform: scale(1.2);
+      box-shadow: 0 0 0 4px rgba(226, 192, 68, 0.32), 0 7px 18px rgba(0, 0, 0, 0.54);
+    }
+
+    .maplibregl-popup-content {
+      width: min(320px, 76vw);
+      padding: 14px 15px;
+      border: 1px solid rgba(247, 244, 234, 0.18);
+      border-radius: 6px;
+      background: rgba(14, 17, 13, 0.96);
+      color: var(--ink);
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.48);
+    }
+
+    .maplibregl-popup-close-button {
+      color: var(--ink);
+      font-size: 18px;
+      padding: 4px 8px;
+    }
+
+    .popup h2 {
+      margin: 0 22px 6px 0;
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .popup .stage {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      background: var(--stage-color);
+      color: #10130f;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .popup p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .popup a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 7px 10px;
+      border-radius: 4px;
+      background: rgba(247, 244, 234, 0.12);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .maplibregl-ctrl-group {
+      background: rgba(9, 11, 9, 0.9);
+      border: 1px solid rgba(247, 244, 234, 0.18);
+    }
+
+    .maplibregl-ctrl button {
+      filter: invert(1);
+    }
+
+    @media (max-width: 780px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(58vh, 68vh) auto;
+        height: auto;
+        min-height: 100%;
+      }
+
+      .map-wrap {
+        grid-row: 1;
+        min-height: 58vh;
+      }
+
+      .panel {
+        grid-row: 2;
+        min-height: 42vh;
+        border-right: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .header {
+        padding: 18px 16px 12px;
+      }
+
+      .header h1 {
+        font-size: 23px;
+      }
+
+      .legend {
+        grid-template-columns: 1fr;
+        padding: 12px 16px;
+      }
+
+      .route-list {
+        max-height: 46vh;
+        padding: 6px 8px 12px;
+      }
+
+      .footer-note {
+        padding: 10px 16px 14px;
+      }
+
+      .map-note {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="panel" aria-label="Optimized route checklist">
+      <header class="header">
+        <h1>Sons Of The Forest Route Map</h1>
+        <p>Optimized beach-spawn progression with optional-but-useful pickups, mapped against MapGenie coordinates.</p>
+      </header>
+
+      <section class="legend" aria-label="Route stages" id="legend"></section>
+      <nav class="route-list" id="routeList" aria-label="Numbered route stops"></nav>
+
+      <footer class="footer-note">
+        External MapGenie tiles require internet access. The route list and markers still describe the order if the background tiles do not load.
+      </footer>
+    </aside>
+
+    <section class="map-wrap" aria-label="Interactive map">
+      <div id="map"></div>
+      <div class="map-note">Click a numbered stop or route-list entry to focus it. Links open the matching MapGenie marker.</div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.js"></script>
+  <script>
+    const stageColors = {
+      "Early beach setup": "#e2c044",
+      "Cave unlock chain": "#d08a5b",
+      "Keycard and bunker chain": "#9ba3b0",
+      "West corridor": "#5ba6b8",
+      "Endgame unlocks": "#bda4ef",
+      "Final bunker/cave": "#f0d56b"
+    };
+
+    const routeStops = [
+      {
+        name: "Beach Spawn",
+        stage: "Early beach setup",
+        coords: [-0.739018, 0.843889],
+        task: "Start here, build only a tarp save, assign Kelvin, and craft spear, bow, arrows, molotovs, and early Bone Armor.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=269023"
+      },
+      {
+        name: "Coastal Cave",
+        stage: "Early beach setup",
+        coords: [-0.740032, 0.835618],
+        task: "Collect Rebreather, Stun Gun, cave supplies, Artifact Piece #1, and the optional Powered Cross blueprint.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268797"
+      },
+      {
+        name: "Can Opener",
+        stage: "Early beach setup",
+        coords: [-0.730370, 0.844860],
+        task: "Grab the north-beach Can Opener after leaving Coastal Cave.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268925"
+      },
+      {
+        name: "Machete",
+        stage: "Early beach setup",
+        coords: [-0.709027, 0.831077],
+        task: "Pick up the Machete from the north beach camp before turning inland.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268807"
+      },
+      {
+        name: "Flashlight",
+        stage: "Early beach setup",
+        coords: [-0.757705, 0.737580],
+        task: "Cut down the hanging body and take the Flashlight before deeper cave work.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268784"
+      },
+      {
+        name: "Modern Axe Camp",
+        stage: "Early beach setup",
+        coords: [-0.765063, 0.744410],
+        task: "Collect the Modern Axe and nearby Cooking Pot for combat, building, food, and water utility.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268852"
+      },
+      {
+        name: "Stun Baton",
+        stage: "Cave unlock chain",
+        coords: [-0.803768, 0.688934],
+        task: "Pick up the Stun Baton at the waterfall skull pile on the west swing.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268851"
+      },
+      {
+        name: "Ropegun Cave",
+        stage: "Cave unlock chain",
+        coords: [-0.799497, 0.686766],
+        task: "Collect Cross, supplies, Artifact Piece #2, and Rope Gun.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268823"
+      },
+      {
+        name: "Shovel Cave",
+        stage: "Cave unlock chain",
+        coords: [-0.749710, 0.713900],
+        task: "Collect Slingshot outside, then Wetsuit, Flashlight Attachment, cave loot, and Shovel inside.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268811"
+      },
+      {
+        name: "Maintenance Bunker A",
+        stage: "Keycard and bunker chain",
+        coords: [-0.744946, 0.764686],
+        task: "Collect Maintenance Keycard, Firefighter Axe, Pistol Rail, Laser Sight, printer access, Flask, and laptop clues.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268801"
+      },
+      {
+        name: "Food and Dining Bunker",
+        stage: "Keycard and bunker chain",
+        coords: [-0.791734, 0.793962],
+        task: "Collect Crossbow, bolts, food stockpile, VIP Keycard, and laptop clues.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268800"
+      },
+      {
+        name: "Binoculars",
+        stage: "Keycard and bunker chain",
+        coords: [-0.800513, 0.854157],
+        task: "Collect Binoculars from the beached kayak while sweeping the north-west coast.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=270137"
+      },
+      {
+        name: "Shotgun Grave",
+        stage: "Keycard and bunker chain",
+        coords: [-0.820295, 0.828275],
+        task: "Dig the GPS grave and collect the Shotgun.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268805"
+      },
+      {
+        name: "Pistol Raft",
+        stage: "Keycard and bunker chain",
+        coords: [-0.853067, 0.753840],
+        task: "Swim to the raft and collect the Pistol; conserve ammo for emergencies.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268816"
+      },
+      {
+        name: "Entertainment Bunker",
+        stage: "West corridor",
+        coords: [-0.807468, 0.714050],
+        task: "Collect Guest Keycard, Guitar, Shotgun Rail, ammo, resin, and Chainsaw.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268821"
+      },
+      {
+        name: "Glider Launcher Blueprint",
+        stage: "West corridor",
+        coords: [-0.786005, 0.719280],
+        task: "Grab the nearby Glider Launcher blueprint if you want stronger glider utility later.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=323488"
+      },
+      {
+        name: "Maintenance Bunker B",
+        stage: "West corridor",
+        coords: [-0.800543, 0.607369],
+        task: "Dig and clear the bunker; collect Compound Bow, Pistol Silencer, printer resin, and supplies.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268830"
+      },
+      {
+        name: "Leather Jacket",
+        stage: "West corridor",
+        coords: [-0.789250, 0.609356],
+        task: "Swing by the plane crash site for the Leather Jacket while already in the south-west corridor.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268959"
+      },
+      {
+        name: "Night Vision Goggles",
+        stage: "West corridor",
+        coords: [-0.803556, 0.562108],
+        task: "Collect Night Vision Goggles from the southwest military camp.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=272386"
+      },
+      {
+        name: "Teleporter Blueprint Cave",
+        stage: "West corridor",
+        coords: [-0.801942, 0.561901],
+        task: "Grab the Teleporter blueprint while you are already at the southwest edge before crossing inland.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=325544"
+      },
+      {
+        name: "Residential Bunker",
+        stage: "Endgame unlocks",
+        coords: [-0.594437, 0.646184],
+        task: "Use Guest Keycard access; collect Katana, Putter, Gold Mask, supplies, and unlock Luxury Bunker access.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268836"
+      },
+      {
+        name: "Ancient Armor Cave",
+        stage: "Endgame unlocks",
+        coords: [-0.617723, 0.667576],
+        task: "Collect Ancient Armor, Rifle, and the two Cave D artifact pieces.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268835"
+      },
+      {
+        name: "Pickaxe Cave",
+        stage: "Endgame unlocks",
+        coords: [-0.589858, 0.753210],
+        task: "Collect Pickaxe, Solafite Weapon Upgrader blueprint, Artifact Piece #5, and enough Solafite Ore for armor plus any weapon upgrades.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=304493"
+      },
+      {
+        name: "Maintenance Bunker C",
+        stage: "Endgame unlocks",
+        coords: [-0.605707, 0.790551],
+        task: "Dig and clear the golf-course bunker; collect the Revolver.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268842"
+      },
+      {
+        name: "Winter Jacket",
+        stage: "Endgame unlocks",
+        coords: [-0.606995, 0.841754],
+        task: "Pick up the Winter Jacket at the northeast military tent.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=323698"
+      },
+      {
+        name: "Grind Trap Cave",
+        stage: "Endgame unlocks",
+        coords: [-0.553031, 0.792766],
+        task: "Clear Cave G for the Grind Trap blueprint and Artifact Piece #6 before turning into the Luxury Bunker finish.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=308529"
+      },
+      {
+        name: "Luxury Bunker",
+        stage: "Final bunker/cave",
+        coords: [-0.548168, 0.751335],
+        task: "Enter the Luxury Bunker, collect the Armor Upgrade blueprint, and prepare upgraded Ancient Armor.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=268841"
+      },
+      {
+        name: "Final Cave Door",
+        stage: "Final bunker/cave",
+        coords: [-0.548155, 0.750470],
+        task: "Open the Hell Cave door with upgraded Ancient Armor, then complete the final cave.",
+        link: "https://mapgenie.io/sons-of-the-forest/maps/world?locationIds=269035"
+      }
+    ];
+
+    const legend = document.getElementById("legend");
+    const routeList = document.getElementById("routeList");
+    const markers = new Map();
+    let activePopup = null;
+
+    Object.entries(stageColors).forEach(([stage, color]) => {
+      const item = document.createElement("div");
+      item.className = "legend-item";
+      item.style.setProperty("--stage-color", color);
+      item.innerHTML = `<span class="swatch"></span><span>${stage}</span>`;
+      legend.appendChild(item);
+    });
+
+    routeStops.forEach((stop, index) => {
+      const button = document.createElement("button");
+      button.className = "route-stop";
+      button.type = "button";
+      button.dataset.stopIndex = String(index);
+      button.style.setProperty("--stage-color", stageColors[stop.stage]);
+      button.innerHTML = `
+        <span class="route-index">${index + 1}</span>
+        <span>
+          <span class="route-name">${stop.name}</span>
+          <span class="route-meta">${stop.stage} · ${stop.task}</span>
+        </span>
+      `;
+      routeList.appendChild(button);
+    });
+
+    const lineGeoJson = {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: routeStops.map((stop) => stop.coords)
+        }
+      }]
+    };
+
+    const map = new maplibregl.Map({
+      container: "map",
+      center: [-0.75699239980495, 0.78721632516605],
+      zoom: 13,
+      minZoom: 9,
+      maxZoom: 16,
+      maxBounds: [[-1.4, 0], [0, 1.4]],
+      style: {
+        version: 8,
+        sources: {
+          mapgenie: {
+            type: "raster",
+            tiles: ["https://tiles.mapgenie.io/games/sons-of-the-forest/world/default-v3/{z}/{x}/{y}.jpg"],
+            tileSize: 256,
+            minzoom: 9,
+            maxzoom: 16,
+            bounds: [-1.4, 0, 0, 1.4],
+            attribution: "Map tiles © MapGenie"
+          },
+          route: {
+            type: "geojson",
+            data: lineGeoJson
+          }
+        },
+        layers: [
+          {
+            id: "mapgenie-tiles",
+            type: "raster",
+            source: "mapgenie",
+            paint: {
+              "raster-saturation": -0.08,
+              "raster-contrast": 0.05
+            }
+          },
+          {
+            id: "route-line-glow",
+            type: "line",
+            source: "route",
+            layout: {
+              "line-join": "round",
+              "line-cap": "round"
+            },
+            paint: {
+              "line-color": "#10130f",
+              "line-width": 9,
+              "line-opacity": 0.72
+            }
+          },
+          {
+            id: "route-line",
+            type: "line",
+            source: "route",
+            layout: {
+              "line-join": "round",
+              "line-cap": "round"
+            },
+            paint: {
+              "line-color": "#f0d56b",
+              "line-width": 4,
+              "line-opacity": 0.96
+            }
+          }
+        ]
+      }
+    });
+
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "top-right");
+    map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+
+    function popupHtml(stop, index) {
+      const color = stageColors[stop.stage];
+      return `
+        <article class="popup" style="--stage-color: ${color}">
+          <h2>${index + 1}. ${stop.name}</h2>
+          <span class="stage">${stop.stage}</span>
+          <p>${stop.task}</p>
+          <a href="${stop.link}" target="_blank" rel="noreferrer">Open MapGenie marker</a>
+        </article>
+      `;
+    }
+
+    function setActive(index, shouldFly = true) {
+      document.querySelectorAll(".route-stop").forEach((node) => {
+        node.classList.toggle("active", Number(node.dataset.stopIndex) === index);
+      });
+
+      markers.forEach((marker, markerIndex) => {
+        marker.getElement().classList.toggle("active", markerIndex === index);
+      });
+
+      const stop = routeStops[index];
+      if (shouldFly) {
+        map.flyTo({
+          center: stop.coords,
+          zoom: Math.max(map.getZoom(), 13.7),
+          essential: true
+        });
+      }
+
+      if (activePopup) {
+        activePopup.remove();
+      }
+
+      activePopup = new maplibregl.Popup({ closeButton: true, closeOnClick: false, offset: 21 })
+        .setLngLat(stop.coords)
+        .setHTML(popupHtml(stop, index))
+        .addTo(map);
+    }
+
+    map.on("load", () => {
+      routeStops.forEach((stop, index) => {
+        const el = document.createElement("button");
+        el.className = "marker";
+        el.type = "button";
+        el.textContent = String(index + 1);
+        el.title = `${index + 1}. ${stop.name}`;
+        el.style.setProperty("--stage-color", stageColors[stop.stage]);
+        el.addEventListener("click", () => setActive(index, false));
+
+        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+          .setLngLat(stop.coords)
+          .addTo(map);
+
+        markers.set(index, marker);
+      });
+
+      routeList.addEventListener("click", (event) => {
+        const button = event.target.closest(".route-stop");
+        if (!button) return;
+        setActive(Number(button.dataset.stopIndex), true);
+      });
+
+      const bounds = new maplibregl.LngLatBounds();
+      routeStops.forEach((stop) => bounds.extend(stop.coords));
+      map.fitBounds(bounds, { padding: { top: 46, right: 70, bottom: 46, left: 70 }, maxZoom: 12.2 });
+      setTimeout(() => setActive(0, false), 350);
+    });
+  </script>
+</body>
+</html>
